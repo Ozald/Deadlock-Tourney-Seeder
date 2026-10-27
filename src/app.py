@@ -1,5 +1,6 @@
 import streamlit as st
 import seeder
+import pandas as pd
 
 st.set_page_config(page_title="Deadlock Tourney Seeder",layout="wide")
 
@@ -28,7 +29,7 @@ SUBRANK_OPTIONS = {
 
 #################################### HELPER METHODS ########################################
 
-# Renders a player card with name and rank/URL inputs."""
+# Renders a player card with name and rank/URL inputs.
 def render_player_card(index, column):
     curr_expander = column.expander(f"Player {index+1}", expanded=True)
     with curr_expander:
@@ -43,28 +44,35 @@ def render_player_card(index, column):
             curr_expander.text_input(label="Steam ID", key=f"player_steamID_{index}")
 
 def render_teams(teams):
-    st.subheader(f"Team A (Estimated MMR: {teams['total_mmr_A']})")
+    st.subheader(f"Team A")
     for player in teams.get("team_A"):
-        st.write(f"{player['name']} (Rank: {player['rank']} {player['subrank']})")
+        st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
 
-    st.subheader(f"Team B (Estimated MMR: {teams['total_mmr_B']})")
+    st.subheader(f"Team B")
     for player in teams.get("team_B"):
-        st.write(f"{player['name']} (Rank: {player['rank']} {player['subrank']})")
+        st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
 
-def generate_player_data(num_of_players):
+def generate_player_data(player_table):
     player_list = []
     
-    for i in range(num_of_players):
+    for _, row in player_table.iterrows():
+        name = row.get("name")
+        if not name or str(name).strip() == "":
+            raise ValueError("Missing name found")
+
+        missing_steam = bool(row.get("missing_steam", False))
+
         player_info = {
-            "name": st.session_state.get(f"player_name_{i}"),
-            "missing_steam" : st.session_state.get(f"player_hasSteam_{i}")
+            "name": str(name).strip(),
+            "missing_steam" : missing_steam
         }
 
         if player_info["missing_steam"]:
-            player_info["rank"] = st.session_state.get(f"player_rank_{i}")
-            player_info["subrank"] = SUBRANK_OPTIONS[st.session_state.get(f"player_subrank_{i}")]
+            player_info["rank"] = row.get("rank")
+            player_info["subrank"] = SUBRANK_OPTIONS[row.get("subrank")]
         else:
-            player_info["steamID"] = st.session_state.get(f"player_steamID_{i}")
+            steam_id = row.get("steamID")
+            player_info["steamID"] = str(steam_id).strip() if steam_id else ""
 
         player_list.append(player_info)
 
@@ -85,16 +93,22 @@ def main():
 
     st.divider()
 
-    left_col, right_col = st.columns(2)
+    # Table display
+    player_schema = {
+        "name" : pd.Series(dtype="string"),
+        "missing_steam" : pd.Series(dtype="boolean"),
+        "steamID" : pd.Series(dtype="string"),
+        "rank" : pd.Series(dtype=pd.CategoricalDtype(categories=RANK_OPTIONS)),
+        "subrank" : pd.Series(dtype=pd.CategoricalDtype(categories=SUBRANK_OPTIONS.keys()))
+    }
 
-    for i in range(num_of_players):
-        current_col = left_col if i % 2 == 0 else right_col
-        render_player_card(index=i, column=current_col)
+    player_df = pd.DataFrame(player_schema, index=range(num_of_players))
+    player_table = st.data_editor(player_df)
 
     if st.button("Begin Match Seeding", type="primary"):
         with st.spinner("Please wait..."):
 
-            player_list = generate_player_data(num_of_players)
+            player_list = generate_player_data(player_table)
             teams = seeder.generate_teams(player_list)
             render_teams(teams)
 
