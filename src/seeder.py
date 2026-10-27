@@ -79,7 +79,7 @@ def generate_teams(player_list):
 
 def seed_player(player):
     if player["missing_steam"]:
-        raw_mmr = RANK_MMR_MAPPING.get(player.get("rank"), 1000)
+        raw_mmr = RANK_MMR_MAPPING.get(player.get("rank"), 1000) + (RANK_MMR_MAPPING.get(player.get("subrank"), 1) * 500)
         player["raw_mmr"] = raw_mmr
 
         return bell_curve_weighter(raw_score=raw_mmr)
@@ -96,7 +96,8 @@ def seed_player(player):
         subrank = response.get("subrank")
 
         tier_name = RANK_TIER_MAPPING.get(tier_num, "Initiate")
-        player["rank"] = f"{tier_name} {ROMAN_NUMERALS.get(subrank)}" 
+        player["rank"] = f"{tier_name}" 
+        player["subrank"] = f"{ROMAN_NUMERALS.get(subrank)}" 
 
         print(f"Fetched current rank for {player.get('name')}")
 

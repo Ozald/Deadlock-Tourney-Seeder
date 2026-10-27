@@ -17,6 +17,15 @@ RANK_OPTIONS = [
     "Eternus"
 ]
 
+SUBRANK_OPTIONS = {
+    "I"     : 1,
+    "II"    : 2,
+    "III"   : 3,
+    "IV"    : 4,
+    "V"     : 5,
+    "VI"    : 6
+}
+
 #################################### HELPER METHODS ########################################
 
 # Renders a player card with name and rank/URL inputs."""
@@ -29,17 +38,18 @@ def render_player_card(index, column):
 
         if missing_steam:
             curr_expander.selectbox(label="Rank", options=RANK_OPTIONS, key=f"player_rank_{index}")
+            curr_expander.selectbox(label="Division", options=SUBRANK_OPTIONS.keys(), key=f"player_subrank_{index}")
         else:
             curr_expander.text_input(label="Steam ID", key=f"player_steamID_{index}")
 
 def render_teams(teams):
     st.subheader(f"Team A (Estimated MMR: {teams['total_mmr_A']})")
     for player in teams.get("team_A"):
-        st.write(f"{player['name']} (Rank: {player['rank']})")
+        st.write(f"{player['name']} (Rank: {player['rank']} {player['subrank']})")
 
     st.subheader(f"Team B (Estimated MMR: {teams['total_mmr_B']})")
     for player in teams.get("team_B"):
-        st.write(f"{player['name']} (Rank: {player['rank']})")
+        st.write(f"{player['name']} (Rank: {player['rank']} {player['subrank']})")
 
 def generate_player_data(num_of_players):
     player_list = []
@@ -52,6 +62,7 @@ def generate_player_data(num_of_players):
 
         if player_info["missing_steam"]:
             player_info["rank"] = st.session_state.get(f"player_rank_{i}")
+            player_info["subrank"] = SUBRANK_OPTIONS[st.session_state.get(f"player_subrank_{i}")]
         else:
             player_info["steamID"] = st.session_state.get(f"player_steamID_{i}")
 
