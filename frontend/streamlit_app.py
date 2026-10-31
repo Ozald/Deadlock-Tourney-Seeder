@@ -1,5 +1,5 @@
 import streamlit as st
-import seeder
+import backend.src.core.seeder as seeder
 import pandas as pd
 
 st.set_page_config(page_title="Deadlock Tourney Seeder",layout="wide")

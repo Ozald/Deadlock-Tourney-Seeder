@@ -1,5 +1,5 @@
 import random
-import seeder
+import backend.src.core.seeder as seeder
 
 SAMPLE_NAMES = [
     "Viper", "Ghost", "Blitz", "Rogue", 
