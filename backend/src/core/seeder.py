@@ -1,5 +1,6 @@
 import itertools
 import requests
+from requests.exceptions import RequestException
 
 RANK_MMR_MAPPING = {
     "Initiate" : 1000,
@@ -38,6 +39,15 @@ ROMAN_NUMERALS = {
     6: "VI"
 }
 
+ROMAN_TO_INT = {
+    "I"     : 1,
+    "II"    : 2,
+    "III"   : 3,
+    "IV"    : 4,
+    "V"     : 5,
+    "VI"    : 6
+}
+
 #################################### HELPER METHODS ########################################
 
 def generate_teams(player_list):
@@ -47,8 +57,11 @@ def generate_teams(player_list):
     if len(player_list) % 2 != 0:
         raise ValueError("Player count must be even to make balanced teams.")
 
+    if len(player_list) > 12:
+        raise ValueError("Maximum player limit for balancing is 12.")
+
     for player in player_list:
-        player["mmr"] = seed_player(player)
+        player["weighted_mmr"] = seed_player(player)
 
     best_split = None       # Stores the best possible seeding for the tourney
     smallest_diff = float("inf")
@@ -56,8 +69,8 @@ def generate_teams(player_list):
     for teamA in itertools.combinations(player_list, len(player_list) // 2):
         teamB = [player for player in player_list if player not in teamA]
 
-        sumA = sum(player["mmr"] for player in teamA)
-        sumB = sum(player["mmr"] for player in teamB)
+        sumA = sum(player["weighted_mmr"] for player in teamA)
+        sumB = sum(player["weighted_mmr"] for player in teamB)
 
         diff = abs(sumA - sumB)
 
@@ -78,30 +91,54 @@ def generate_teams(player_list):
     return best_split
 
 def seed_player(player):
-    if player["missing_steam"]:
-        raw_mmr = RANK_MMR_MAPPING.get(player.get("rank"), 1000) + (RANK_MMR_MAPPING.get(player.get("subrank"), 1) * 500)
+    if "steamID" not in player.keys() or not player["steamID"]:
+        rank = player.get("rank", "Initiate")
+        subrank = player.get("subrank", 1)
+
+        # If string, convert to integer
+        if isinstance(subrank, str):
+            subrank = ROMAN_TO_INT.get(subrank.upper(), 1)
+        else:
+            subrank = int(subrank)
+
+        raw_mmr = RANK_MMR_MAPPING.get(rank, 1000) + (subrank * 500)
+        player["subrank"] = ROMAN_NUMERALS.get(subrank, "I") 
         player["raw_mmr"] = raw_mmr
 
         return bell_curve_weighter(raw_score=raw_mmr)
     else:
         steamID = player["steamID"]
-        response = requests.get(f"https://api.deadlock-api.com/v1/players/{steamID}/rank").json()
+        try:
+            response = requests.get(f"https://api.deadlock-api.com/v1/players/{steamID}/rank", timeout=5)
 
+            if response.status_code != 200:
+                raise RequestException("API Request failed.")
+
+            response = response.json()
+        except (RequestException, ValueError):
+            player["rank"] = "Unranked"
+            player["subrank"] = "I"
+            player["raw_mmr"] = 1000
+
+            return bell_curve_weighter(1000)
+        
         badge = response.get("badge")
         if not badge:
             player["rank"] = "Unranked"
-            return 1000
+            player["subrank"] = "I"
+            player["raw_mmr"] = 1000
 
-        tier_num = response.get("rank")
-        subrank = response.get("subrank")
+            return bell_curve_weighter(1000)
+
+        tier_num = response.get("rank", 1)
+        subrank_num = response.get("subrank", 1)
 
         tier_name = RANK_TIER_MAPPING.get(tier_num, "Initiate")
-        player["rank"] = f"{tier_name}" 
-        player["subrank"] = f"{ROMAN_NUMERALS.get(subrank)}" 
+        player["rank"] = tier_name
+        player["subrank"] = ROMAN_NUMERALS.get(subrank_num, "I")
 
-        print(f"Fetched current rank for {player.get('name')}")
-
-        raw_mmr = response["last_match"]["player_rank_final_flat_progress"]
+        last_match = response.get("last_match") or {}
+        raw_mmr = last_match.get("player_rank_final_flat_progress", 1000)
         player["raw_mmr"] = raw_mmr
 
         return bell_curve_weighter(raw_score=raw_mmr)
