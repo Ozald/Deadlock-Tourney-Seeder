@@ -8,11 +8,11 @@ def read_root():
     return {"message": "Deadlock Tourney Seeder API connection success!"}
 
 @app.get("/seed")
-def seed_tournament(data: dict):
+def seed_tournament(player_list: dict):
     return {
         "status": "success",
         "message": "Not implemented yet",
-        "data": data
+        "data": player_list
     }
 
 handler = Mangum(app)
