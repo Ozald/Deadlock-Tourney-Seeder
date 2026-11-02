@@ -38,7 +38,7 @@ $env:DEADLOCK_SEEDER_API_URL = "http://127.0.0.1:8000"
 python -m streamlit run frontend/legacy_streamlit_app.py
 ```
 
-Open the Streamlit URL shown in the terminal (usually `http://localhost:8501`). The API docs are available at `http://127.0.0.1:8000/docs`.
+Open the Streamlit URL shown in the terminal (usually `http://localhost:8501`).
 
 ### Use a deployed API
 
