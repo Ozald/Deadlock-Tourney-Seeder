@@ -13,6 +13,17 @@ A lightweight Streamlit web application designed to make balancing teams easier 
 - **Manual Fallback Entry:** Allows custom rank and subrank selection for players without a linked Steam ID.
 - **Dynamic Roster Sizes:** Supports custom matches ranging from 4 to 12 total players (2v2 up to 6v6).
 
+## Run the frontend
+
+Set `DEADLOCK_SEEDER_API_URL` to the deployed API base URL, then run the Streamlit app. For example, in PowerShell:
+
+```powershell
+$env:DEADLOCK_SEEDER_API_URL = "https://your-api.example.com/prod"
+streamlit run frontend/legacy_streamlit_app.py
+```
+
+The frontend sends tournament data to `POST /seed` as JSON.
+
 ## Note
 
 This is currently a work-in-progress project. Once the first version is completed, a website will be posted. Stay tuned!

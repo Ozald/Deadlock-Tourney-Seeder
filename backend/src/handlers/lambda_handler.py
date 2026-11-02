@@ -9,6 +9,7 @@ def read_root():
     return {"message": "Deadlock Tourney Seeder API connection success!"}
 
 @app.get("/seed")
+@app.post("/seed")
 def seed_tournament(data: dict):
     player_list = data["player_list"]
     teams = seeder.generate_teams(player_list)
