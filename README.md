@@ -25,6 +25,14 @@ python -m pip install -r requirements.txt
 
 On macOS or Linux, use `python3 -m venv .venv` and `source .venv/bin/activate` instead of the first two commands.
 
+### Start both services on Windows
+
+Run `start_app.bat` from the repository root. It uses Python from the `py -3.13` launcher or `python` command if available; otherwise, it downloads and installs the official Python 3.13 installer for the current user. It creates the project virtual environment if needed, installs the requirements, then opens the backend and frontend in separate windows. Any path changes apply only to the launcher and its child windows.
+
+The script needs an internet connection when Python or project dependencies need to be downloaded.
+
+### How to run without start_app.bat
+
 Start the API from the repository root in one terminal:
 
 ```powershell
