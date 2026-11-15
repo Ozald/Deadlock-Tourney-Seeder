@@ -16,6 +16,8 @@ RANK_MMR_MAPPING = {
     "Eternus" : 71000
 }
 
+UNRANKED_RAW_MMR = RANK_MMR_MAPPING["Acolyte"] + (5 * 500)
+
 RANK_TIER_MAPPING = {
     1: "Initiate",
     2: "Seeker",
@@ -95,13 +97,20 @@ def seed_player(player):
         rank = player.get("rank", "Initiate")
         subrank = player.get("subrank", 1)
 
-        # If string, convert to integer
-        if isinstance(subrank, str):
-            subrank = ROMAN_TO_INT.get(subrank.upper(), 1)
+        # Unranked players are considered "average" players to keep balancing fair
+        # "Average" = around Acolyte V
+        if (rank == "Unranked"):
+            rank = "Acolyte"
+            subrank = 5
+            raw_mmr = UNRANKED_RAW_MMR
         else:
-            subrank = int(subrank)
+            # If string, convert to integer
+            if isinstance(subrank, str):
+                subrank = ROMAN_TO_INT.get(subrank.upper(), 1)
+            else:
+                subrank = int(subrank)
+            raw_mmr = RANK_MMR_MAPPING.get(rank, 1000) + (subrank * 500)
 
-        raw_mmr = RANK_MMR_MAPPING.get(rank, 1000) + (subrank * 500)
         player["subrank"] = ROMAN_NUMERALS.get(subrank, "I") 
         player["raw_mmr"] = raw_mmr
 
@@ -116,19 +125,11 @@ def seed_player(player):
 
             response = response.json()
         except (RequestException, ValueError):
-            player["rank"] = "Unranked"
-            player["subrank"] = "I"
-            player["raw_mmr"] = 1000
-
-            return bell_curve_weighter(1000)
+            return _seed_unranked_player(player)
         
         badge = response.get("badge")
         if not badge:
-            player["rank"] = "Unranked"
-            player["subrank"] = "I"
-            player["raw_mmr"] = 1000
-
-            return bell_curve_weighter(1000)
+            return _seed_unranked_player(player)
 
         tier_num = response.get("rank", 1)
         subrank_num = response.get("subrank", 1)
@@ -138,10 +139,18 @@ def seed_player(player):
         player["subrank"] = ROMAN_NUMERALS.get(subrank_num, "I")
 
         last_match = response.get("last_match") or {}
-        raw_mmr = last_match.get("player_rank_final_flat_progress", 1000)
+        raw_mmr = last_match.get("player_rank_final_flat_progress")
+        if raw_mmr is None:
+            raw_mmr = RANK_MMR_MAPPING.get(tier_name, 1000) + (subrank_num * 500)
         player["raw_mmr"] = raw_mmr
 
         return bell_curve_weighter(raw_score=raw_mmr)
+
+def _seed_unranked_player(player):
+    player["rank"] = "Unranked"
+    player["subrank"] = "I"
+    player["raw_mmr"] = UNRANKED_RAW_MMR
+    return bell_curve_weighter(raw_score=UNRANKED_RAW_MMR)
 
 def bell_curve_weighter(raw_score, min_val=1000, max_val=75000):
     normalized = max(0.0, min(1.0, (raw_score - min_val) / (max_val - min_val)))
