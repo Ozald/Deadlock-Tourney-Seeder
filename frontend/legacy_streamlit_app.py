@@ -9,6 +9,7 @@ st.set_page_config(page_title="Deadlock Tourney Seeder",layout="wide")
 API_BASE_URL = os.getenv("DEADLOCK_SEEDER_API_URL", "").rstrip("/")
 
 RANK_OPTIONS = [
+    "Unranked",
     "Initiate",
     "Seeker",
     "Acolyte",
@@ -48,11 +49,17 @@ def render_player_card(index, column):
 def render_teams(teams):
     st.subheader(f"Team A")
     for player in teams.get("team_A"):
-        st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
+        if player['rank'] == "Unranked":
+            st.write(f"{player['name']} (Unranked)")
+        else:
+            st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
 
     st.subheader(f"Team B")
     for player in teams.get("team_B"):
-        st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
+        if player['rank'] == "Unranked":
+            st.write(f"{player['name']} (Unranked)")
+        else:
+            st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
 
 # Generates a list of player data dictionaries from the provided player table.
 def generate_player_data(player_table):
