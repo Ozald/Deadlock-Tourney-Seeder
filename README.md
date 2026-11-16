@@ -36,9 +36,15 @@ STATLOCKER_API_KEY=your-statlocker-api-key
 
 Do not commit `.env` or share your API key. Without a key, or if the profile request fails, Steam-linked players are seeded as unranked.
 
-### Run locally
+### Start both services on Windows
 
-Activate the virtual environment in each terminal. Start the backend from the repository root:
+Run `start_app.bat` from the repository root. It uses Python from the `py -3.13` launcher or `python` command if available; otherwise, it downloads and installs the official Python 3.13 installer for the current user. It creates the project virtual environment if needed, installs the requirements, then opens the backend and frontend in separate windows. Any path changes apply only to the launcher and its child windows.
+
+The script needs an internet connection when Python or project dependencies need to be downloaded.
+
+### Run locally without `start_app.bat`
+
+Activate the virtual environment in each terminal. Start the API from the repository root in one terminal:
 
 ```powershell
 .venv\Scripts\Activate.ps1
