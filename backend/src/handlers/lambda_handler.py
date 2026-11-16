@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from mangum import Mangum
-import backend.src.core.seeder as seeder
+import backend.src.core.new_seeder as seeder
 
 app = FastAPI(title="Deadlock Tourney Seeder API")
 
