@@ -16,8 +16,6 @@ RANK_MMR_MAPPING = {
     "Eternus" : 71000
 }
 
-UNRANKED_RAW_MMR = RANK_MMR_MAPPING["Acolyte"] + (5 * 500)
-
 RANK_TIER_MAPPING = {
     1: "Initiate",
     2: "Seeker",
@@ -31,6 +29,8 @@ RANK_TIER_MAPPING = {
     10: "Ascendant",
     11: "Eternus"
 }
+
+UNRANKED_RAW_MMR = RANK_MMR_MAPPING["Acolyte"] + (5 * 500)
 
 ROMAN_NUMERALS = {
     1: "I", 

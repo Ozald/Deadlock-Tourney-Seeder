@@ -1,27 +1,30 @@
+from base64 import b64encode
+from html import escape
 import os
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import requests
-from warnings import deprecated
+from urllib.parse import quote
 
 st.set_page_config(page_title="Deadlock Tourney Seeder",layout="wide")
 
 API_BASE_URL = os.getenv("DEADLOCK_SEEDER_API_URL", "").rstrip("/")
 
-RANK_OPTIONS = [
-    "Unranked",
-    "Initiate",
-    "Seeker",
-    "Acolyte",
-    "Sentinel",
-    "Mystic",
-    "Ritualist",
-    "Emissary",
-    "Oracle",
-    "Phantom",
-    "Ascendant",
-    "Eternus"
-]
+RANK_OPTIONS = {
+    "Unranked"  : 0,
+    "Initiate"  : 1,
+    "Seeker"    : 2,
+    "Acolyte"   : 3,
+    "Sentinel"  : 4,
+    "Mystic"    : 5,
+    "Ritualist" : 6,
+    "Emissary"  : 7,
+    "Oracle"    : 8,
+    "Phantom"   : 9,
+    "Ascendant" : 10,
+    "Eternus"   : 11
+}
 
 SUBRANK_OPTIONS = {
     "I"     : 1,
@@ -32,34 +35,98 @@ SUBRANK_OPTIONS = {
     "VI"    : 6
 }
 
+RANK_ASSET_URL = "https://api.deadlock-api.com/v1/assets/ranks/{rank}/{subrank}/image"
+OBSCURUS_RANK_ASSET_URL = "https://assets-bucket.deadlock-api.com/assets-api-res/images/ranks/rank00_lg.webp"
+PLACEHOLDER_AVATAR_PATH = (
+    Path(__file__).resolve().parents[1] / "assets" / "profile_avatar_placeholder_large.png"
+)
+PLACEHOLDER_AVATAR_SRC = (
+    "data:image/png;base64,"
+    + b64encode(PLACEHOLDER_AVATAR_PATH.read_bytes()).decode("ascii")
+)
+
 #################################### HELPER METHODS ########################################
 
-# Renders a player card with name and rank/URL inputs.
-@deprecated("This function is deprecated and will be removed in future versions.")
-def render_player_card(index, column):
-    curr_expander = column.expander(f"Player {index+1}", expanded=True)
-    with curr_expander:
+# Gets the image link for a player's rank.
+def _get_rank_asset_url(player):
+    rank = player.get("rank")
+    if rank in ("Unranked", "Obscurus"):
+        return OBSCURUS_RANK_ASSET_URL
 
-        curr_expander.text_input(label="Name", key=f"player_name_{index}")
-        curr_expander.text_input(label="Steam ID", key=f"player_steamID_{index}")
-        curr_expander.selectbox(label="Rank", options=RANK_OPTIONS, key=f"player_rank_{index}")
-        curr_expander.selectbox(label="Division", options=SUBRANK_OPTIONS.keys(), key=f"player_subrank_{index}")
+    rank_num = RANK_OPTIONS.get(rank)
+    subrank = player.get("subrank")
+    if isinstance(subrank, str):
+        subrank_num = SUBRANK_OPTIONS.get(subrank.strip().upper())
+    elif isinstance(subrank, int) and subrank in SUBRANK_OPTIONS.values():
+        subrank_num = subrank
+    else:
+        subrank_num = None
+
+    if rank_num is None or subrank_num is None:
+        return None
+
+    return RANK_ASSET_URL.format(rank=rank_num, subrank=subrank_num)
 
 # Renders the generated teams in the Streamlit app.
 def render_teams(teams):
-    st.subheader(f"Team A")
-    for player in teams.get("team_A"):
-        if player['rank'] == "Unranked":
-            st.write(f"{player['name']} (Unranked)")
-        else:
-            st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
+    _render_team("Team A", teams.get("team_A", []))
+    _render_team("Team B", teams.get("team_B", []))
 
-    st.subheader(f"Team B")
-    for player in teams.get("team_B"):
-        if player['rank'] == "Unranked":
-            st.write(f"{player['name']} (Unranked)")
-        else:
-            st.write(f"{player['name']} ({player['rank']} {player['subrank']})")
+# Renders a single team given a name and player list.
+def _render_team(team_name, players):
+    st.markdown(
+        f"<h3 style='text-align:center'>{escape(team_name)}</h3>",
+        unsafe_allow_html=True,
+    )
+    player_markup = "".join(_render_player(player) for player in players)
+    st.markdown(
+        '<div style="display:flex; flex-wrap:wrap; justify-content:center; '
+        f'align-items:flex-start; gap:0.75rem">{player_markup}</div>',
+        unsafe_allow_html=True,
+    )
+
+# Renders the username, avatar, and rank for a given player.
+def _render_player(player):
+    image_markup = []
+    rank_asset_url = _get_rank_asset_url(player)
+    profile_pic = player.get("profile_pic")
+
+    if rank_asset_url:
+        image_markup.append(
+            f'<img src="{escape(rank_asset_url, quote=True)}" alt="Rank badge" '
+            'style="width:64px; height:64px; object-fit:contain">'
+        )
+
+    avatar_src = profile_pic or PLACEHOLDER_AVATAR_SRC
+    avatar_alt = "Profile picture" if profile_pic else "Default profile avatar"
+    avatar_markup = (
+        f'<img src="{escape(str(avatar_src), quote=True)}" alt="{avatar_alt}" '
+        'style="width:112px; height:112px; border-radius:10%; object-fit:cover;">'
+    )
+    
+    steam_id = player.get("steamID")
+    if steam_id:
+        profile_url = f"https://statlocker.gg/profile/{quote(str(steam_id), safe='')}/"
+        image_markup.append(
+            f'<a href="{escape(profile_url, quote=True)}" target="_blank" '
+            f'rel="noopener noreferrer">{avatar_markup}</a>'
+        )
+    else:
+        image_markup.append(avatar_markup)
+
+
+    name = escape(str(player.get("name") or "Player"))
+    rank = player.get("rank", "Unranked")
+    rank_label = rank if rank in ("Unranked", "Obscurus") else f"{rank} {player.get('subrank', '')}"
+    return (
+        '<div style="width:140px; display:flex; flex-direction:column; align-items:center; '
+        'gap:0.25rem; text-align:center">'
+        f'{"".join(image_markup)}'
+        f'<div style="font-weight:600; overflow-wrap:anywhere">{name}</div>'
+        f'<div style="opacity:0.75">{escape(str(rank_label))}</div>'
+        '</div>'
+    )
+
 
 # Generates a list of player data dictionaries from the provided player table.
 def generate_player_data(player_table):
@@ -79,7 +146,7 @@ def generate_player_data(player_table):
         else:
             rank = row.get("rank")
             if pd.isna(rank) or not str(rank).strip():
-                rank = RANK_OPTIONS[0]
+                rank = list(RANK_OPTIONS.keys())[0]
 
             subrank = row.get("subrank")
             if pd.isna(subrank) or not str(subrank).strip():
@@ -111,7 +178,7 @@ def main():
     player_schema = {
         "name" : pd.Series(dtype="string"),
         "steamID" : pd.Series(dtype="string"),
-        "rank" : pd.Series(dtype=pd.CategoricalDtype(categories=RANK_OPTIONS)),
+        "rank" : pd.Series(dtype=pd.CategoricalDtype(categories=RANK_OPTIONS.keys())),
         "subrank" : pd.Series(dtype=pd.CategoricalDtype(categories=SUBRANK_OPTIONS.keys()))
     }
 
